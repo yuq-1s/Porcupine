@@ -51,9 +51,13 @@ final class Utils {
      * @param context application context.
      */
     static boolean hasRecordPermission(Context context) {
-        int permResult = ActivityCompat.checkSelfPermission(context,
-                Manifest.permission.RECORD_AUDIO);
-        return permResult == PackageManager.PERMISSION_GRANTED;
+        boolean permResult = (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+        permResult = (permResult && (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED));
+        permResult = (permResult && (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED));
+        return permResult;
     }
 
     /**
@@ -62,7 +66,11 @@ final class Utils {
      */
     static void showRecordPermission(Activity activity) {
         ActivityCompat.requestPermissions(activity,
-                new String[]{Manifest.permission.RECORD_AUDIO}, 0);
+                new String[]{
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                }, 0);
     }
 
     /**
