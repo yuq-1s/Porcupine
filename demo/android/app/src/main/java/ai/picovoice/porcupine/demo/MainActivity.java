@@ -29,6 +29,7 @@ import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.LinkMovementMethod;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -37,13 +38,20 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.RandomAccessFile;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import ai.picovoice.porcupinemanager.KeywordCallback;
@@ -238,13 +246,6 @@ public class MainActivity extends AppCompatActivity {
         recorder.release();
         recorder = null;
         recordingThread = null;
-
-        final File file = new File(Environment.getExternalStorageDirectory(), "recording.wav");
-        try{
-            updateWavHeader(file);
-        } catch (IOException ex) {
-            throw new RuntimeException("Cannot update wav header", ex);
-        }
     }
 
     private class RecordingRunnable implements Runnable {
@@ -253,8 +254,8 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             final File file = new File(Environment.getExternalStorageDirectory(), "recording.wav");
             final ByteBuffer buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
-
-            try (final FileOutputStream outStream = new FileOutputStream(file)) {
+            HttpURLConnection urlConnection = null;
+            try (final ByteArrayOutputStream outStream = new ByteArrayOutputStream()) {
                 writeWavHeader(outStream, CHANNEL_CONFIG, SAMPLING_RATE_IN_HZ, AUDIO_FORMAT);
                 while (recordingInProgress.get()) {
                     int result = recorder.read(buffer, BUFFER_SIZE);
@@ -265,6 +266,32 @@ public class MainActivity extends AppCompatActivity {
                     outStream.write(buffer.array(), 0, BUFFER_SIZE);
                     buffer.clear();
                 }
+                byte[] wav = outStream.toByteArray();
+                int len = wav.length;
+                ByteBuffer buf = ByteBuffer.wrap(wav);
+                buf.position(4);
+                buf.order(ByteOrder.LITTLE_ENDIAN);
+                buf.putInt((int) len-8);
+                buf.position(40);
+                buf.putInt((int) len-44);
+                wav = buf.array();
+                String wav1 = Base64.getEncoder().encodeToString(wav);
+                Log.w("MainActivity", wav1);
+
+                URL url = new URL("http://192.168.1.114:8000");
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("POST");
+                OutputStream out = new BufferedOutputStream(urlConnection.getOutputStream());
+
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, "UTF-8"));
+                writer.write(wav1);
+                writer.flush();
+                writer.close();
+                out.close();
+
+                urlConnection.connect();
+                urlConnection.getResponseCode();
+                urlConnection.disconnect();
             } catch (IOException e) {
                 throw new RuntimeException("Writing of recorded audio failed", e);
             }
@@ -382,47 +409,5 @@ public class MainActivity extends AppCompatActivity {
                 'd', 'a', 't', 'a', // Subchunk2ID
                 0, 0, 0, 0, // Subchunk2Size (must be updated later)
         });
-    }
-
-    /**
-     * Updates the given wav file's header to include the final chunk sizes
-     *
-     * @param wav The wav file to update
-     * @throws IOException
-     */
-    private static void updateWavHeader(File wav) throws IOException {
-        byte[] sizes = ByteBuffer
-                .allocate(8)
-                .order(ByteOrder.LITTLE_ENDIAN)
-                // There are probably a bunch of different/better ways to calculate
-                // these two given your circumstances. Cast should be safe since if the WAV is
-                // > 4 GB we've already made a terrible mistake.
-                .putInt((int) (wav.length() - 8)) // ChunkSize
-                .putInt((int) (wav.length() - 44)) // Subchunk2Size
-                .array();
-
-        RandomAccessFile accessWave = null;
-        //noinspection CaughtExceptionImmediatelyRethrown
-        try {
-            accessWave = new RandomAccessFile(wav, "rw");
-            // ChunkSize
-            accessWave.seek(4);
-            accessWave.write(sizes, 0, 4);
-
-            // Subchunk2Size
-            accessWave.seek(40);
-            accessWave.write(sizes, 4, 4);
-        } catch (IOException ex) {
-            // Rethrow but we still close accessWave in our finally
-            throw ex;
-        } finally {
-            if (accessWave != null) {
-                try {
-                    accessWave.close();
-                } catch (IOException ex) {
-                    //
-                }
-            }
-        }
     }
 }

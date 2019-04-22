@@ -54,6 +54,8 @@ final class Utils {
         boolean permResult = (ActivityCompat.checkSelfPermission(context,
                 Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
         permResult = (permResult && (ActivityCompat.checkSelfPermission(context,
+                Manifest.permission.INTERNET) == PackageManager.PERMISSION_GRANTED));
+        permResult = (permResult && (ActivityCompat.checkSelfPermission(context,
                 Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED));
         permResult = (permResult && (ActivityCompat.checkSelfPermission(context,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED));
@@ -68,6 +70,7 @@ final class Utils {
         ActivityCompat.requestPermissions(activity,
                 new String[]{
                         Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.INTERNET,
                         Manifest.permission.READ_EXTERNAL_STORAGE,
                         Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 }, 0);
