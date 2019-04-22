@@ -42,11 +42,9 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -271,9 +269,9 @@ public class MainActivity extends AppCompatActivity {
                 ByteBuffer buf = ByteBuffer.wrap(wav);
                 buf.position(4);
                 buf.order(ByteOrder.LITTLE_ENDIAN);
-                buf.putInt((int) len-8);
+                buf.putInt(len-8);
                 buf.position(40);
-                buf.putInt((int) len-44);
+                buf.putInt(len-44);
                 wav = buf.array();
                 String wav1 = Base64.getEncoder().encodeToString(wav);
                 Log.w("MainActivity", wav1);
@@ -291,24 +289,11 @@ public class MainActivity extends AppCompatActivity {
 
                 urlConnection.connect();
                 urlConnection.getResponseCode();
+                Log.i("MainActivity", urlConnection.getResponseMessage());
                 urlConnection.disconnect();
             } catch (IOException e) {
                 throw new RuntimeException("Writing of recorded audio failed", e);
             }
-//          finally {
-//                if (recorder != null) {
-//                    try {
-//                        if (recorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-//                            recorder.stop();
-//                        }
-//                    } catch (IllegalStateException ex) {
-//                        ///
-//                    }
-//                    if (recorder.getState() == recorder.STATE_INITIALIZED) {
-//                        recorder.release();
-//                    }
-//                }
-//            }
         }
 
         private String getBufferReadFailureReason(int errorCode) {
